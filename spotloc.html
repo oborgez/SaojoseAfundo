@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpotLoc — Descubra o que há por perto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --brand: #FF5533;
+    --brand-dark: #CC3311;
+    --brand-light: #FFF0EC;
+    --ink: #1A1208;
+    --ink2: #5C4F42;
+    --surface: #FFFDF9;
+    --card: #FFFFFF;
+    --border: rgba(26,18,8,0.1);
+    --accent: #FFD166;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--surface);
+    color: var(--ink);
+    overflow-x: hidden;
+  }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 3rem;
+    background: rgba(255,253,249,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    color: var(--ink);
+    letter-spacing: -0.03em;
+  }
+  .logo span { color: var(--brand); }
+
+  nav ul { list-style: none; display: flex; gap: 2.5rem; }
+  nav ul a {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ink2);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  nav ul a:hover { color: var(--brand); }
+
+  .nav-cta {
+    background: var(--brand);
+    color: white !important;
+    padding: 0.55rem 1.4rem;
+    border-radius: 100px;
+    font-weight: 500 !important;
+    transition: background 0.2s !important;
+  }
+  .nav-cta:hover { background: var(--brand-dark) !important; color: white !important; }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: center;
+    padding: 8rem 3rem 4rem;
+    gap: 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    right: -10%;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(255,85,51,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.4rem 1rem;
+    border-radius: 100px;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .hero-tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--brand);
+    border-radius: 50%;
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2.8rem, 5vw, 4.5rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--brand);
+    position: relative;
+  }
+
+  h1 em::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 0; right: 0;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    z-index: -1;
+  }
+
+  .hero p {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    color: var(--ink2);
+    max-width: 480px;
+    margin-bottom: 2.5rem;
+    font-weight: 300;
+  }
+
+  .hero-btns { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--brand);
+    color: white;
+    padding: 0.85rem 2rem;
+    border-radius: 100px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-primary:hover { background: var(--brand-dark); transform: translateY(-1px); }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: var(--ink);
+    padding: 0.85rem 2rem;
+    border-radius: 100px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    text-decoration: none;
+    border: 1.5px solid var(--border);
+    transition: all 0.2s;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+  }
+  .btn-secondary:hover { border-color: var(--brand); color: var(--brand); }
+
+  .hero-visual {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .hero-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .spot-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    animation: floatIn 0.6s ease both;
+  }
+  .spot-card:hover { transform: translateX(6px); box-shadow: 0 4px 24px rgba(255,85,51,0.1); }
+  .spot-card:nth-child(1) { animation-delay: 0.1s; }
+  .spot-card:nth-child(2) { animation-delay: 0.25s; margin-left: 2rem; }
+  .spot-card:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes floatIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .spot-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+  }
+
+  .spot-icon.rest { background: #FFF0EC; }
+  .spot-icon.shop { background: #E8F5E9; }
+  .spot-icon.super { background: #E3F2FD; }
+
+  .spot-info h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--ink);
+    margin-bottom: 0.2rem;
+  }
+  .spot-info p { font-size: 0.78rem; color: var(--ink2); }
+
+  .spot-badge {
+    margin-left: auto;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.25rem 0.6rem;
+    border-radius: 100px;
+  }
+
+  /* STATS */
+  .stats-bar {
+    background: var(--ink);
+    padding: 2.5rem 3rem;
+    display: flex;
+    justify-content: center;
+    gap: 5rem;
+    flex-wrap: wrap;
+  }
+
+  .stat-item { text-align: center; }
+
+  .stat-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: var(--accent);
+    display: block;
+  }
+
+  .stat-label {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* SECTION: MAPA */
+  .map-section {
+    padding: 6rem 3rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.35rem 0.9rem;
+    border-radius: 100px;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 4vw, 3rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+    line-height: 1.1;
+  }
+
+  .section-desc {
+    color: var(--ink2);
+    font-size: 1rem;
+    line-height: 1.7;
+    max-width: 550px;
+    font-weight: 300;
+    margin-bottom: 2.5rem;
+  }
+
+  .map-controls {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    align-items: center;
+  }
+
+  .filter-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid var(--border);
+    background: white;
+    color: var(--ink2);
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--brand);
+    color: white;
+    border-color: var(--brand);
+  }
+  .filter-btn .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .add-pin-btn {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--brand);
+    color: white;
+    padding: 0.6rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.2s;
+  }
+  .add-pin-btn:hover { background: var(--brand-dark); }
+
+  .map-wrapper {
+    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+    height: 520px;
+  }
+
+  #map { width: 100%; height: 100%; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26,18,8,0.6);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: white;
+    border-radius: 24px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    animation: modalIn 0.3s ease;
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.96) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin-bottom: 0.4rem;
+    color: var(--ink);
+  }
+  .modal p { font-size: 0.85rem; color: var(--ink2); margin-bottom: 1.5rem; }
+
+  .form-group { margin-bottom: 1rem; }
+  .form-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--ink2);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 0.7rem 1rem;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    color: var(--ink);
+    background: white;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--brand); }
+
+  .modal-btns { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
+
+  .btn-cancel {
+    flex: 1;
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--ink2);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .btn-cancel:hover { border-color: var(--ink); color: var(--ink); }
+
+  .btn-save {
+    flex: 2;
+    padding: 0.75rem;
+    border-radius: 10px;
+    border: none;
+    background: var(--brand);
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+  }
+  .btn-save:hover { background: var(--brand-dark); }
+
+  /* HOW IT WORKS */
+  .how-section {
+    padding: 6rem 3rem;
+    background: var(--ink);
+    color: white;
+  }
+
+  .how-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .how-section .section-tag { background: rgba(255,209,102,0.15); color: var(--accent); }
+
+  .how-section h2 { color: white; margin-bottom: 3.5rem; }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+
+  .step {
+    padding: 2rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    background: rgba(255,255,255,0.03);
+    transition: background 0.2s;
+    position: relative;
+  }
+  .step:hover { background: rgba(255,255,255,0.07); }
+
+  .step-num {
+    font-family: 'Syne', sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
+    color: rgba(255,255,255,0.08);
+    line-height: 1;
+    margin-bottom: 1.5rem;
+  }
+
+  .step-icon {
+    width: 48px; height: 48px;
+    background: rgba(255,85,51,0.15);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+
+  .step h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: white;
+    margin-bottom: 0.5rem;
+  }
+
+  .step p {
+    font-size: 0.88rem;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.55);
+    font-weight: 300;
+  }
+
+  /* CATEGORIES */
+  .cat-section {
+    padding: 6rem 3rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-top: 2.5rem;
+  }
+
+  .cat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .cat-card:hover {
+    border-color: var(--brand);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(255,85,51,0.1);
+  }
+
+  .cat-emoji { font-size: 2rem; display: block; margin-bottom: 0.75rem; }
+  .cat-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  /* FOOTER */
+  footer {
+    background: var(--ink);
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    padding: 2.5rem 3rem;
+    font-size: 0.85rem;
+  }
+
+  footer .footer-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.8rem;
+    color: white;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  footer .footer-logo span { color: var(--brand); }
+
+  /* LEAFLET POPUP CUSTOM */
+  .leaflet-popup-content-wrapper {
+    border-radius: 14px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15) !important;
+  }
+  .leaflet-popup-content { font-family: 'DM Sans', sans-serif !important; }
+
+  .popup-inner h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--ink);
+    margin-bottom: 0.2rem;
+  }
+  .popup-inner p { font-size: 0.8rem; color: var(--ink2); margin-bottom: 0.5rem; }
+  .popup-desc {
+    font-size: 0.78rem;
+    color: var(--ink2);
+    line-height: 1.5;
+    margin: 0.4rem 0 0.5rem;
+    font-style: italic;
+  }
+  .popup-badge {
+    display: inline-block;
+    background: var(--brand-light);
+    color: var(--brand);
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+  }
+
+  .delete-pin {
+    display: block;
+    margin-top: 0.75rem;
+    width: 100%;
+    padding: 0.4rem;
+    border-radius: 8px;
+    border: 1px solid #FEE2E2;
+    background: #FFF5F5;
+    color: #CC3333;
+    font-size: 0.75rem;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .delete-pin:hover { background: #FFE4E4; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    nav { padding: 1rem 1.5rem; }
+    nav ul { display: none; }
+    .hero { grid-template-columns: 1fr; padding: 7rem 1.5rem 3rem; gap: 3rem; }
+    .hero-visual { order: -1; }
+    .hero-cards { max-width: 100%; }
+    .spot-card:nth-child(2) { margin-left: 0; }
+    .stats-bar { gap: 2rem; padding: 2rem 1.5rem; }
+    .map-section, .cat-section { padding: 4rem 1.5rem; }
+    .steps { grid-template-columns: 1fr; }
+    .how-section { padding: 4rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="logo">Spot<span>Loc</span></div>
+  <ul>
+    <li><a href="#mapa">Mapa</a></li>
+    <li><a href="#como">Como Funciona</a></li>
+    <li><a href="#categorias">Categorias</a></li>
+    <li><a href="#mapa" class="nav-cta">Adicionar Ponto</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-tag">Divulgação inteligente</div>
+    <h1>Coloque seu negócio <em>no mapa</em></h1>
+    <p>A SpotLoc conecta estabelecimentos locais — restaurantes, lojas, supermercados e muito mais — com as pessoas que estão perto deles agora.</p>
+    <div class="hero-btns">
+      <a href="#mapa" class="btn-primary">&#x2B; Adicionar Ponto</a>
+      <a href="#como" class="btn-secondary">Como funciona</a>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="hero-cards">
+      <div class="spot-card">
+        <div class="spot-icon rest">🍕</div>
+        <div class="spot-info">
+          <h4>Pizzaria do Centro</h4>
+          <p>Restaurante · 200m de você</p>
+        </div>
+        <span class="spot-badge">Destaque</span>
+      </div>
+      <div class="spot-card">
+        <div class="spot-icon shop">👗</div>
+        <div class="spot-info">
+          <h4>Moda &amp; Estilo</h4>
+          <p>Loja de roupas · 350m de você</p>
+        </div>
+        <span class="spot-badge">Novo</span>
+      </div>
+      <div class="spot-card">
+        <div class="spot-icon super">🛒</div>
+        <div class="spot-info">
+          <h4>Mercado Bom Preço</h4>
+          <p>Supermercado · 500m de você</p>
+        </div>
+        <span class="spot-badge">Promoção</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <span class="stat-num">300+</span>
+    <span class="stat-label">Estabelecimentos</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">12</span>
+    <span class="stat-label">Cidades</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">8 mil</span>
+    <span class="stat-label">Visitantes/mês</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">6</span>
+    <span class="stat-label">Categorias</span>
+  </div>
+</div>
+
+<!-- MAPA -->
+<section class="map-section" id="mapa">
+  <div class="section-tag">📍 Mapa interativo</div>
+  <h2>Explore ou adicione<br>um ponto</h2>
+  <p class="section-desc">Clique no mapa para adicionar um novo estabelecimento, ou use os filtros para visualizar por categoria. Todos os pontos ficam salvos na página.</p>
+
+  <div class="map-controls">
+    <button class="filter-btn active" onclick="filterPins('todos', this)">
+      <span class="dot" style="background:#FF5533"></span> Todos
+    </button>
+    <button class="filter-btn" onclick="filterPins('restaurante', this)">
+      <span class="dot" style="background:#E76F51"></span> Restaurantes
+    </button>
+    <button class="filter-btn" onclick="filterPins('loja', this)">
+      <span class="dot" style="background:#2A9D8F"></span> Lojas
+    </button>
+    <button class="filter-btn" onclick="filterPins('supermercado', this)">
+      <span class="dot" style="background:#457B9D"></span> Supermercados
+    </button>
+    <button class="filter-btn" onclick="filterPins('servico', this)">
+      <span class="dot" style="background:#6A4C93"></span> Serviços
+    </button>
+    <button class="add-pin-btn" id="addPinBtn">&#x2B; Novo ponto</button>
+  </div>
+
+  <div class="map-wrapper">
+    <div id="map"></div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-section" id="como">
+  <div class="how-inner">
+    <div class="section-tag">Como funciona</div>
+    <h2>Simples assim</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <div class="step-icon">📌</div>
+        <h4>Adicione seu ponto</h4>
+        <p>Clique no mapa na localização do seu estabelecimento e preencha as informações básicas: nome, tipo e endereço.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <div class="step-icon">📣</div>
+        <h4>Divulgamos para você</h4>
+        <p>Seu negócio aparece no mapa para todos os visitantes da plataforma que estejam na sua região.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <div class="step-icon">🚀</div>
+        <h4>Clientes chegam até você</h4>
+        <p>Pessoas próximas descobrem seu estabelecimento, veem sua localização e chegam com facilidade.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CATEGORIAS -->
+<section class="cat-section" id="categorias">
+  <div class="section-tag">Categorias</div>
+  <h2>Todos os tipos de<br>estabelecimento</h2>
+  <div class="cat-grid">
+    <div class="cat-card"><span class="cat-emoji">🍽️</span><span class="cat-name">Restaurantes</span></div>
+    <div class="cat-card"><span class="cat-emoji">☕</span><span class="cat-name">Cafeterias</span></div>
+    <div class="cat-card"><span class="cat-emoji">🛒</span><span class="cat-name">Supermercados</span></div>
+    <div class="cat-card"><span class="cat-emoji">👗</span><span class="cat-name">Lojas de Roupa</span></div>
+    <div class="cat-card"><span class="cat-emoji">💊</span><span class="cat-name">Farmácias</span></div>
+    <div class="cat-card"><span class="cat-emoji">🏋️</span><span class="cat-name">Academia</span></div>
+    <div class="cat-card"><span class="cat-emoji">💇</span><span class="cat-name">Salões</span></div>
+    <div class="cat-card"><span class="cat-emoji">🍻</span><span class="cat-name">Bares</span></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-logo">Spot<span>Loc</span></span>
+  <p>Conectando negócios locais às pessoas certas.</p>
+  <p style="margin-top:0.5rem; font-size:0.78rem">© 2025 SpotLoc — Empresa fictícia criada para fins acadêmicos</p>
+</footer>
+
+<!-- MODAL: ADICIONAR PONTO -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Adicionar estabelecimento</h3>
+    <p id="modalCoords">Ponto selecionado no mapa</p>
+    <div class="form-group">
+      <label>Nome do estabelecimento</label>
+      <input type="text" id="pinName" placeholder="Ex: Padaria Central">
+    </div>
+    <div class="form-group">
+      <label>Categoria</label>
+      <select id="pinType">
+        <option value="restaurante">🍽️ Restaurante</option>
+        <option value="loja">🛍️ Loja</option>
+        <option value="supermercado">🛒 Supermercado</option>
+        <option value="servico">🔧 Serviço</option>
+        <option value="cafe">☕ Cafeteria</option>
+        <option value="farmacia">💊 Farmácia</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Endereço (opcional)</label>
+      <input type="text" id="pinAddress" placeholder="Ex: Rua das Flores, 123">
+    </div>
+    <div class="form-group">
+      <label>Descrição (opcional)</label>
+      <textarea id="pinDesc" placeholder="Ex: Especialidade em massas artesanais, ambiente familiar, aberto até 23h..." rows="3" style="width:100%;padding:0.7rem 1rem;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--ink);resize:vertical;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="cancelBtn">Cancelar</button>
+      <button class="btn-save" id="saveBtn">Salvar ponto ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const map = L.map('map', { zoomControl: true }).setView([-7.0, -41.5], 7);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  const colors = {
+    restaurante: '#E76F51', loja: '#2A9D8F', supermercado: '#457B9D',
+    servico: '#6A4C93', cafe: '#8B6A3E', farmacia: '#2D6A4F', default: '#FF5533'
+  };
+
+  const emojis = {
+    restaurante: '🍽️', loja: '🛍️', supermercado: '🛒',
+    servico: '🔧', cafe: '☕', farmacia: '💊', default: '📍'
+  };
+
+  function createIcon(type) {
+    const color = colors[type] || colors.default;
+    const emoji = emojis[type] || emojis.default;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="50" viewBox="0 0 42 50">
+      <path d="M21 0C9.4 0 0 9.4 0 21c0 14.9 21 29 21 29s21-14.1 21-29C42 9.4 32.6 0 21 0z" fill="${color}"/>
+      <circle cx="21" cy="21" r="13" fill="white" opacity="0.95"/>
+      <text x="21" y="27" text-anchor="middle" font-size="14">${emoji}</text>
+    </svg>`;
+    return L.divIcon({ className: '', html: svg, iconSize: [42, 50], iconAnchor: [21, 50], popupAnchor: [0, -48] });
+  }
+
+  // --- PERSISTÊNCIA COM localStorage ---
+  const STORAGE_KEY = 'spotloc_pins';
+  const SAMPLE_KEY  = 'spotloc_samples_loaded';
+
+  const samplePins = [
+    { name: 'Pizzaria Bella Napoli', type: 'restaurante', address: 'Centro, Teresina', lat: -5.09,  lng: -42.80 },
+    { name: 'Supermercado Belo',     type: 'supermercado', address: 'Av. Principal, 45', lat: -5.10, lng: -42.82 },
+    { name: 'Moda Feminina Chic',    type: 'loja',         address: 'Rua das Flores, 12', lat: -5.08, lng: -42.78 },
+    { name: 'Café do Povo',          type: 'cafe',         address: 'Praça Central, s/n', lat: -5.093, lng: -42.81 },
+    { name: 'Farmácia Saúde Total',  type: 'farmacia',     address: 'Av. Brasil, 200',   lat: -5.085, lng: -42.83 },
+  ];
+
+  function loadSavedPins() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function savePinsToStorage() {
+    const data = pins.map(p => ({ name: p.name, type: p.type, address: p.address, desc: p.desc || '', lat: p.lat, lng: p.lng }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+  // --- FIM PERSISTÊNCIA ---
+
+  let pins = [];
+  let tempMarker = null;
+  let pendingLatLng = null;
+  let addingMode = false;
+  let activeFilter = 'todos';
+
+  function buildPopup(idx, data) {
+    const descHtml = data.desc ? `<p class="popup-desc">${data.desc}</p>` : '';
+    return `<div class="popup-inner">
+      <h4>${data.name}</h4>
+      <p>${data.address || 'Localização marcada no mapa'}</p>
+      ${descHtml}
+      <span class="popup-badge">${emojis[data.type] || '📍'} ${data.type.charAt(0).toUpperCase() + data.type.slice(1)}</span>
+      <button class="delete-pin" onclick="removePin(${idx})">🗑 Remover ponto</button>
+    </div>`;
+  }
+
+  function addPin(data, save = true) {
+    const marker = L.marker([data.lat, data.lng], { icon: createIcon(data.type) });
+    const idx = pins.length;
+    marker.bindPopup(buildPopup(idx, data), { maxWidth: 200 });
+    marker.addTo(map);
+    const pinData = { ...data, marker };
+    pins.push(pinData);
+    if (activeFilter !== 'todos' && data.type !== activeFilter) marker.remove();
+    if (save) savePinsToStorage();
+  }
+
+  function removePin(idx) {
+    if (pins[idx]) {
+      pins[idx].marker.remove();
+      pins.splice(idx, 1);
+      map.closePopup();
+      // Rebuild popups so os índices ficam certos
+      pins.forEach((p, i) => p.marker.bindPopup(buildPopup(i, p), { maxWidth: 200 }));
+      savePinsToStorage();
+    }
+  }
+  window.removePin = removePin;
+
+  // Carregar pontos salvos; se for a primeira vez, carrega os exemplos
+  const saved = loadSavedPins();
+  if (saved.length === 0 && !localStorage.getItem(SAMPLE_KEY)) {
+    localStorage.setItem(SAMPLE_KEY, '1');
+    samplePins.forEach(p => addPin(p, false));
+    savePinsToStorage();
+  } else {
+    saved.forEach(p => addPin(p, false));
+  }
+
+  // MAP CLICK
+  map.on('click', function(e) {
+    if (!addingMode) return;
+    pendingLatLng = e.latlng;
+    if (tempMarker) tempMarker.remove();
+    tempMarker = L.circleMarker(e.latlng, {
+      radius: 10, color: '#FF5533', fillColor: '#FF5533',
+      fillOpacity: 0.3, weight: 2, dashArray: '4'
+    }).addTo(map);
+    document.getElementById('modalCoords').textContent =
+      `📍 Lat: ${e.latlng.lat.toFixed(4)}, Lng: ${e.latlng.lng.toFixed(4)}`;
+    document.getElementById('modalOverlay').classList.add('open');
+    document.getElementById('pinName').focus();
+  });
+
+  function enableAddMode() {
+    addingMode = true;
+    map.getContainer().style.cursor = 'crosshair';
+    document.getElementById('addPinBtn').textContent = '🎯 Clique no mapa...';
+    document.getElementById('addPinBtn').style.background = '#CC3311';
+  }
+
+  document.getElementById('addPinBtn').addEventListener('click', enableAddMode);
+
+  document.getElementById('saveBtn').addEventListener('click', function() {
+    const name = document.getElementById('pinName').value.trim();
+    const type = document.getElementById('pinType').value;
+    const address = document.getElementById('pinAddress').value.trim();
+    const desc = document.getElementById('pinDesc').value.trim();
+    if (!name) { document.getElementById('pinName').focus(); return; }
+    if (!pendingLatLng) return;
+    addPin({ name, type, address, desc, lat: pendingLatLng.lat, lng: pendingLatLng.lng });
+    closeModal();
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.getElementById('pinName').value = '';
+    document.getElementById('pinAddress').value = '';
+    document.getElementById('pinDesc').value = '';
+    if (tempMarker) { tempMarker.remove(); tempMarker = null; }
+    pendingLatLng = null;
+    addingMode = false;
+    map.getContainer().style.cursor = '';
+    document.getElementById('addPinBtn').textContent = '+ Novo ponto';
+    document.getElementById('addPinBtn').style.background = '#FF5533';
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('modalOverlay').classList.contains('open')) {
+      document.getElementById('saveBtn').click();
+    }
+    if (e.key === 'Escape') closeModal();
+  });
+
+  function filterPins(type, btn) {
+    activeFilter = type;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    pins.forEach(p => {
+      if (type === 'todos' || p.type === type) p.marker.addTo(map);
+      else p.marker.remove();
+    });
+  }
+  window.filterPins = filterPins;
+</script>
+</body>
+</html>
